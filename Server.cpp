@@ -1,11 +1,13 @@
 #include "Server.hpp"
+#include "Parser.hpp"
 
 Server::Server(std::string port, std::string passwd) : _port(port), _passwd(passwd) {
     this->_socket_fd = create_socket();
     fcntl(this->_socket_fd, F_SETFL, O_NONBLOCK);
     pollfd serv = {this->_socket_fd, POLLIN, 0};
     this->_poll_fd.push_back(serv);
-    _running = true;
+    this->_running = true;
+    this->_parser = new Parser(this);
 }
 
 Server::~Server() {
@@ -14,6 +16,7 @@ Server::~Server() {
         close(it->second->get_client_fd());
         delete it->second;
     }
+    delete _parser;
 };
 
 int Server::create_socket() {
@@ -63,7 +66,8 @@ int Server::create_socket() {
 void Server::start() {
     while(_running) {
         //verifier si il y a une erreur de poll
-        if (poll(this->_poll_fd.begin().base(), this->_poll_fd.size(), -1) < 0)
+        int tmp = poll(this->_poll_fd.begin().base(), this->_poll_fd.size(), -1);
+	if(tmp < 0)
             throw std::runtime_error("error while polling");
         //iterer sur chaque fd disponible et vérifier les évenements disponible
         for (std::vector<pollfd>::iterator it = _poll_fd.begin(); it != _poll_fd.end(); it++) {
@@ -80,12 +84,10 @@ void Server::start() {
                 }
                 this->client_message((*it).fd);
             }
-            //Evenement deconnection
-            if (((*it).revents & POLLHUP) == POLLHUP)
-            {
-                this->client_disconnect((*it).fd);
-                break;
-            }
+	    //La déconnection est effectué dans read_message. Ici, c'est juste pour arreter la boucle quand il se déconnecte afin de pas faire crash le serv
+	    if (((*it).revents & POLLHUP) == POLLHUP) {
+                break ;
+	    }
         }
     }
 }
@@ -100,8 +102,7 @@ void Server::client_connect() {
     if (client_fd < 0)
         throw std::runtime_error("error while accept client connection");
     //Descripteur des client non blocant + Ajouter le client a poll
-    fcntl(client_fd, F_SETFL, O_NONBLOCK);
-    pollfd client = {this->_socket_fd, POLLIN, 0};
+    pollfd client = {client_fd, POLLIN | POLLHUP, 0};
     this->_poll_fd.push_back(client);
 
     //Crée et stocker le client
@@ -112,18 +113,52 @@ void Server::client_connect() {
 }
 
 void Server::client_disconnect(int client_fd) {
+    std::cout << "Client disconnected with fd = " << client_fd << std::endl;
     for(std::vector<pollfd>::iterator it = this->_poll_fd.begin(); it != this->_poll_fd.end(); it++) {
         if (it->fd == client_fd)
         {
-            this->_poll_fd.erase(it);
+            it = this->_poll_fd.erase(it);
             break ;
         }
     }
+    delete _clients[client_fd];
     _clients.erase(client_fd);
-    delete _client[client_fd];
     close(client_fd);
 }
 
 void Server::client_message(int client_fd) {
-    client_fd++;
+	std::string message;
+	char buffer[1024];
+	ssize_t bytes;
+
+	memset(buffer, 0, sizeof(buffer));
+	while(!strstr(buffer, "\n"))
+	{
+		memset(buffer, 0, sizeof(buffer));
+		bytes = recv(client_fd, buffer, 1023, 0);
+		if (bytes == 0) {
+			this->client_disconnect(client_fd);
+			return ;
+		}
+		else if (bytes < 0) {
+			std::cerr << "Error while reading CLIENT socket" << std::endl;
+			return ;
+		}
+		message.append(buffer);
+	}
+	std::cout << "client message : " << message << std::endl;
+	//Utiliser la class parser pour gerer le message
+	this->_parser->parse(this->_clients.at(client_fd), message);
+}
+
+Client* Server::get_client_nickname(std::string nickname) const {
+	for (std::map<int, Client*>::const_iterator it = this->_clients.begin(); it != this->_clients.end(); it++){
+		if (nickname.compare(it->second->get_nickname()) == 0)
+			return it->second;
+	}
+	return NULL;
+}
+
+std::string Server::get_password() const {
+	return(this->_passwd);
 }

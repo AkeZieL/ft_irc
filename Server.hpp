@@ -1,9 +1,12 @@
+#pragma once
+
 #include <iostream>
 #include <vector>
 #include <map>
 
 #include <cstring>
 #include <cstdlib>
+#include <cerrno>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -16,6 +19,8 @@
 
 #define MAX_CLIENTS 100
 
+class Parser;
+
 class Server {
     private:
         Server();
@@ -25,6 +30,7 @@ class Server {
         std::string _passwd;
         int _socket_fd;
         bool _running;
+	Parser* _parser;
 
         std::vector<pollfd> _poll_fd;
         std::map<int, Client*> _clients;
@@ -38,4 +44,6 @@ class Server {
         ~Server();
 
         void start();
+	Client* get_client_nickname(std::string nickname) const;
+	std::string get_password() const;
 };
