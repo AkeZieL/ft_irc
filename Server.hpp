@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 
 #include "Client.hpp"
+#include "Channel.hpp"
 
 #define MAX_CLIENTS 100
 
@@ -34,6 +35,7 @@ class Server {
 
         std::vector<pollfd> _poll_fd;
         std::map<int, Client*> _clients;
+	std::vector<Channel*> _channels;
 
         void client_connect();
         void client_disconnect(int client_fd);
@@ -44,6 +46,13 @@ class Server {
         ~Server();
 
         void start();
-	Client* get_client_nickname(std::string nickname) const;
+
+	//getter
+	Client* get_client_nickname(const std::string& nickname) const;
 	std::string get_password() const;
+	Channel* get_channel(const std::string& channel) const;
+	std::vector<Channel*> get_all_channel() const;
+
+	//setter
+	void set_channels(Channel* channel);
 };

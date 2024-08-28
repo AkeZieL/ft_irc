@@ -2,6 +2,14 @@
 
 #include <string>
 
+#include "Channel.hpp"
+
+#ifndef MAX_CHANNEL
+# define MAX_CHANNEL 10
+#endif
+
+class Channel;
+
 class Client {
     private:
         Client();
@@ -12,9 +20,12 @@ class Client {
 	std::string _nickname;
 	std::string _username;
 	std::string _realname;
-   
+	std::vector<Channel*> _channels;
+
     public:
         Client(int client_fd);
+	Client &operator=(const Client &copy);
+	Client(const Client& copy);
         ~Client();
 
 	//getter
@@ -24,6 +35,8 @@ class Client {
 	std::string get_realname() const;
 	bool get_password() const;
 	bool get_connected() const;
+	size_t get_nbr_channel() const;
+	std::vector<Channel*> get_all_channel() const;
 
 	//setter
 	void set_nickname(const std::string& nickname);
@@ -31,4 +44,5 @@ class Client {
 	void set_username(const std::string& username);
 	void set_password(const bool& password);
 	void set_connected(const bool& connected);
+	void set_channels(Channel* channel);
 };

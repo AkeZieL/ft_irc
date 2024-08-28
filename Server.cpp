@@ -151,7 +151,8 @@ void Server::client_message(int client_fd) {
 	this->_parser->parse(this->_clients.at(client_fd), message);
 }
 
-Client* Server::get_client_nickname(std::string nickname) const {
+//getter
+Client* Server::get_client_nickname(const std::string& nickname) const {
 	for (std::map<int, Client*>::const_iterator it = this->_clients.begin(); it != this->_clients.end(); it++){
 		if (nickname.compare(it->second->get_nickname()) == 0)
 			return it->second;
@@ -161,4 +162,21 @@ Client* Server::get_client_nickname(std::string nickname) const {
 
 std::string Server::get_password() const {
 	return(this->_passwd);
+}
+
+Channel* Server::get_channel(const std::string& channel) const {
+	for(std::vector<Channel*>::const_iterator it = this->_channels.begin(); it != this->_channels.end(); it++) {
+		if(channel.compare((*it)->get_channel_name()) == 0)
+			return *it;
+	}
+	return NULL;
+}
+
+std::vector<Channel*> Server::get_all_channel() const {
+	return(this->_channels);
+}
+
+//setter
+void Server::set_channels(Channel* channel) {
+	this->_channels.push_back(channel);
 }

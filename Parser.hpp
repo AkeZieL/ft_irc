@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "Server.hpp"
-
+#include "Channel.hpp"
 
 
 class Parser;
@@ -28,7 +28,9 @@ class Parser {
 		void join(Client* client, const std::vector<std::string>& args);
 		
 		void authenticated(Client* client);
-		void send_msg_to_client(const int client_fd, const std::string& message);
+		std::vector<std::string> parse_join_args(const std::string& str);
+		void send_msg_to_client(const int client_fd, const std::string& message) const;
+		void reply_to_join(Client* client, Channel* channel) const;
 	public:
 		Parser(Server* server);
 		~Parser();
