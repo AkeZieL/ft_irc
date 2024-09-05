@@ -26,6 +26,7 @@ class Parser {
 		void pass(Client* client, const std::vector<std::string>& args);
 		void privmsg(Client* client, const std::vector<std::string>& args);
 		void join(Client* client, const std::vector<std::string>& args);
+		void part(Client* client, const std::vector<std::string>& args);
 		
 		void authenticated(Client* client);
 		std::vector<std::string> parse_join_args(const std::string& str);

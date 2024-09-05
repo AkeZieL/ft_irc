@@ -6,6 +6,8 @@ Parser::Parser(Server* server) : _serv(server) {
 	this->_commands["PASS"] = &Parser::pass;
 	this->_commands["PRIVMSG"] = &Parser::privmsg;
 	this->_commands["JOIN"] = &Parser::join;
+	this->_commands["PART"] = &Parser::part;
+	this->_commands["MODE"] = &Parser::mode;
 }
 
 Parser::~Parser() {
@@ -301,13 +303,17 @@ void Parser::reply_to_join(Client* client, Channel* channel) const {
 		}
 		reg_nickname.append((*it2)->get_nickname());
 	}
-	//Message de retour pour celui qui join	
-	msg_to_client = ":" + client->get_nickname() + " JOIN : " + channel->get_channel_name() + "\r\n";
+	std::string all_nickname = op_nickname;
+	if (!reg_nickname.empty())
+		all_nickname += " " + reg_nickname;
+	//Message de retour pour celui qui join
+	//msg de bienvenue
+	msg_to_client = ":" + client->get_nickname() + " JOIN :" + channel->get_channel_name() + "\r\n";
 	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
 
-	msg_to_client = "001 " + client->get_nickname() + " :Welcome " + client->get_nickname() + " to " + channel->get_channel_name() + " channel\r\n";
+	msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + channel->get_channel_name() + " :Welcome to " + channel->get_channel_name() + " channel\r\n";
 	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
-	
+	//topic
 	std::string topic = channel->get_topic();
 	if(topic.empty()){
 		msg_to_client = "331 " + client->get_nickname() + " " + channel->get_channel_name() + " :No topic is set\r\n"; // RPL_NOTOPIC
@@ -317,20 +323,231 @@ void Parser::reply_to_join(Client* client, Channel* channel) const {
 		msg_to_client = "332 " + client->get_nickname() + " " + channel->get_channel_name() + " :" +  topic + "\r\n"; // RPL_TOPIC
 		this->send_msg_to_client(client->get_client_fd(), msg_to_client);
 	}
-	msg_to_client = "353 " + client->get_nickname() + " = " + channel->get_channel_name() + " :" + op_nickname + " " + reg_nickname + "\r\n"; // RPL_NAMEREPLY
+	//reply noms
+	msg_to_client = "353 " + client->get_nickname() + " = " + channel->get_channel_name() + " :" + all_nickname + "\r\n"; // RPL_NAMEREPLY
 	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
-
 	msg_to_client = "366 " + client->get_nickname() + " " + channel->get_channel_name() + " :End of name\r\n"; // RPL_ENDOFNAME
 	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
-
+	//afficher liste de noms
+	msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + channel->get_channel_name() + " :" + all_nickname + "\r\n";
+	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+	
 	//Message d'arriver dans le channel pour tout les autres
 	for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
-		msg_to_client = ":" + client->get_nickname() + " JOIN : " + channel->get_channel_name() + "\r\n";
+		msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + channel->get_channel_name() + " :Welcome " + client->get_nickname() + " to " + channel->get_channel_name() + " channel" + "\r\n";
 		this->send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
 	for(std::vector<Client*>::const_iterator it = channel_clients[1].begin(); it != channel_clients[1].end(); it++){
-		msg_to_client = ":" + client->get_nickname() + " JOIN : " + channel->get_channel_name() + "\r\n";
+		msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + channel->get_channel_name() + " :Welcome " + client->get_nickname() + " to " + channel->get_channel_name() + " channel" + "\r\n";
 		this->send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+	}
+}
+
+void Parser::part(Client* client, const std::vector<std::string>& args) {
+	std::string msg_to_client;
+	std::vector<std::string> channel;
+	std::vector<std::string> message;
+
+	//deuxieme parsing pour les args
+	switch(args.size()) {
+		case 0:
+			msg_to_client = "461 " + client->get_nickname() + " :PART command has not enought params\r\n"; // ERR_NEEDMOREPARAMS
+			this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+			return ;
+		case 1:
+			channel = parse_join_args(args[0]);
+			break ;
+		default:
+			channel = parse_join_args(args[0]);
+			for(std::vector<std::string>::const_iterator it = args.begin() + 1; it != args.end(); it++) {
+				message.push_back(*it);
+			}
+			break ;
+	};
+	//quitter channel et envoyé message si dispo
+	for(size_t i = 0; i != channel.size(); i++) {
+		Channel* tmp_channel = this->_serv->get_channel(channel[i]); //Ce n'est pas une copie, si je modifie tmp_channel, je modifie aussi le channel du serv
+		//Vérifier si le nom du channel est valide + si le channel existe
+
+		if(channel[i][0] != '#' || tmp_channel == NULL){
+			msg_to_client = "403 " + client->get_nickname() + " " + channel[i] + " :No such channel\r\n"; // ERR_NOSUCHCHANNEL
+			this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+			continue ;
+		}
+		//Verifie si le client est dans le channel
+		std::vector<std::vector<Client*> > channel_clients = tmp_channel->get_client_in_channel();
+		bool is_in_channel = false;
+		for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
+			if(client->get_nickname() == (*it)->get_nickname()){
+				is_in_channel = true;
+				break ;
+			}
+		}
+		if(is_in_channel == false) {
+			for(std::vector<Client*>::const_iterator it = channel_clients[1].begin(); it != channel_clients[1].end(); it++){
+				if(client->get_nickname() == (*it)->get_nickname()){
+					is_in_channel = true;
+					break ;
+				}
+			}
+		}
+		if(is_in_channel == false) {
+			msg_to_client = "442 " + client->get_nickname() + " " + channel[i] + " :You're not on that channel\r\n"; // ERR_NOTONCHANNEL
+			this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+			return ;
+		}
+		//Quitter le channel et envoyer le message si il y en a un
+		tmp_channel->remove_client(client);
+		msg_to_client = ":" + client->get_nickname() + " PART :" + tmp_channel->get_channel_name() + "\r\n";
+		this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+		if(!message.empty()){
+			//reconstruire le message
+			std::string msg_to_send;
+			for(std::vector<std::string>::iterator it = message.begin(); it != message.end(); it++) {
+				if(!msg_to_send.empty()) {
+					msg_to_send.append(" ");
+				}
+				msg_to_send.append(*it);
+			}
+			//envoyer le message si il y en a un
+			std::string tmp = ":WeeChat 4.5.0-dev";
+			if(!msg_to_send.empty() || msg_to_send != tmp){
+				msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + tmp_channel->get_channel_name() + " " + msg_to_send + "\r\n";
+				for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
+					this->send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+				}
+				for(std::vector<Client*>::const_iterator it = channel_clients[1].begin(); it != channel_clients[1].end(); it++){
+					this->send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+				}
+			}
+		}
+			
+	}
+}
+
+void Parser::mode(Client* client, const std::vector<std::string>& args) {
+	std::string msg_to_client;
+	std::string command;
+	std::string command_arg;
+
+	//deuxieme parsing des args
+	switch(args.size()) {
+		case 0:
+			msg_to_client = "461 " + client->get_nickname() + " :MODE command has not enought params\r\n"; // ERR_NEEDMOREPARAMS
+			this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+			return ;
+		case 1:
+			msg_to_client = "461 " + client->get_nickname() + " :MODE command has not enought params\r\n"; // ERR_NEEDMOREPARAMS
+			this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+			return ;
+		case 2:
+			command = args[2];
+		case 3:
+			command = args[2];
+			command_arg = args[3];
+		default:
+	}
+	//Vérifier si le channel existe
+	Channel* tmp_channel = this->_serv->get_channel(args[0]);
+
+	if(tmp_channel == NULL) {
+		msg_to_client = "403 " + client->get_nickname() + " " + channel[i] + " :No such channel\r\n"; // ERR_NOSUCHCHANNEL
+		this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+		return ;
+	}
+	//Verifier si le client est dans le channel
+	std::vector<std::vector<Client*> > channel_clients = tmp_channel->get_client_in_channel();
+	bool is_in_channel = false;
+	for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
+		if(client->get_nickname() == (*it)->get_nickname()){
+			is_in_channel = true;
+			break ;
+		}
+	}
+	if(is_in_channel == false) {
+		for(std::vector<Client*>::const_iterator it = channel_clients[1].begin(); it != channel_clients[1].end(); it++){
+			if(client->get_nickname() == (*it)->get_nickname()){
+				is_in_channel = true;
+				break ;
+			}
+		}
+	}
+	if(is_in_channel == false) {
+		msg_to_client = "441 " + client->get_nickname() + " " + channel[i] + " :They aren't on that channel\r\n"; // ERR_USERNOTINCHANNEL
+		this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+		return ;
+	}
+	//Vérifier si le mode utiliser existe (i,t,k,o,l) ET check si changement de mode (+, -) ou consultation du mode (pas de + ou - avec mode valide)
+	if(command[0] == '-' || command[0] == '+') {
+		for(size_t i = 1; i != command.size(); i++) {
+			if(command[i] != 'i' || command[i] != 't' || command[i] != 'k' || command[i] != 'o' || command[i] != 'l') {
+				msg_to_client = "472 " + client->get_client_fd() + " " + command[i] + " :is unknown mode char to me for " +  tmp_channel->get_channel_name() + "\r\n"; // ERR_UNKNOWNMODE
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+		}
+		//command est correctement formaté, vérifier si une/plusieurs options necessitant un argument est présent
+		//info supplémentaire: 
+		//k l o necessite des argument si il y a un +
+		//seulement o necessite un argument si il y a un -
+		//Il ne peut y avoir qu'une option necessitant un argument dans la commande ET il doit être a la derniere position
+
+		int count_arg = 0;
+		//Vérification pour les +
+		if(command[0] == '+'){
+			for(size_t i = 1; i != command.size(); i++) {
+				if(command[i] == 'k' || command[i] == 'l' || command[i] == 'o') {
+					count_arg++;
+				}
+			}
+			if(count_arg > 1) {
+				msg_to_client = "461 " + client->get_nickname() + " :MODE can't support a command with 2 options requiring arguments\r\n"; // ERR_NEEDMOREPARAMS
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+			//verification de la position de l'option
+			char command_option = command.back();
+			if (command_option != 'k' || command_option != 'l' || command_option != 'o') {
+				msg_to_client = "461 " + client->get_nickname() + " :MODE command must have an option requiring an arguments at the last position\r\n"; // ERR_NEEDMOREPARAMS
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+			//Tout est bon, on execute
+			//
+		}
+		//Verification pour les -
+		if(command[0] == '-') {
+			for(size_t i = 1; i != command.size(); i++) {
+				if(command[i] == 'o') {
+					count_arg++;
+				}
+			}
+			if(count_arg > 1) {
+				msg_to_client = "461 " + client->get_nickname() + " :MODE can't support a command with 2 options requiring arguments\r\n"; // ERR_NEEDMOREPARAMS
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+			//Verification de la position de l'option
+			char command_option = command.back();
+			if(command_option != 'o') {
+				msg_to_client = "461 " + client->get_nickname() + " :MODE command must have an option requiring an arguments at the last position\r\n"; // ERR_NEEDMOREPARAMS
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+			//Tout est bon on execute
+			//
+		}
+
+	}
+	else {
+		for(size_t i = 1; i != command.end(); i++) {
+			if(command[i] != 'i' || command[i] != 't' || command[i] != 'k' || command[i] != 'o' || command[i] != 'l') {
+				msg_to_client = "472 " + client->get_client_fd() + " " + command[i] + " :is unknown mode char to me for " +  tmp_channel->get_channel_name() + "\r\n"; // ERR_UNKNOWNMODE
+				this->send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+		}
+		//commande valide, répondre au client l'état du ou des modes
 	}
 }
 
