@@ -31,6 +31,7 @@ class Parser {
 		void privmsg(Client* client, const std::vector<std::string>& args);
 		void join(Client* client, const std::vector<std::string>& args);
 		void part(Client* client, const std::vector<std::string>& args);
+		//
 		void mode(Client* client, const std::vector<std::string>& args);
 		void topic(Client* client, const std::vector<std::string>& args);
 		void list(Client* client, const std::vector<std::string>& args);
