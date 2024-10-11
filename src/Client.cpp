@@ -50,6 +50,7 @@ void Client::part_channel(Client* client, Channel* channel, std::string message)
 
 	//Quitter le channel et envoyer le message si il y en a un
 	channel->remove_client(client);
+	this->remove_channel(channel);
 	msg_to_client = ":" + client->get_nickname() + " PART :" + channel->get_channel_name() + "\r\n";
 	Parser::send_msg_to_client(client->get_client_fd(), msg_to_client);
 	if (message != "") {
@@ -71,7 +72,6 @@ void Client::remove_channel(Channel* channel) {
 	for(std::vector<Channel*>::iterator it = this->_channels.begin(); it != this->_channels.end(); it++) {
 		if((*it)->get_channel_name() == channel->get_channel_name()) {
 			this->_channels.erase(it);
-			std::cout << "Channel size : " << this->_channels.size() << std::endl;
 			return ;
 		}
 	}
