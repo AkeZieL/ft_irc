@@ -67,6 +67,16 @@ void Client::part_channel(Client* client, Channel* channel, std::string message)
 	}	
 }
 
+void Client::remove_channel(Channel* channel) {
+	for(std::vector<Channel*>::iterator it = this->_channels.begin(); it != this->_channels.end(); it++) {
+		if((*it)->get_channel_name() == channel->get_channel_name()) {
+			this->_channels.erase(it);
+			std::cout << "Channel size : " << this->_channels.size() << std::endl;
+			return ;
+		}
+	}
+}
+
 //getter
 int Client::get_client_fd() const {
     return (this->_client_fd);

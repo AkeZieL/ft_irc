@@ -30,6 +30,7 @@ class Client {
 
 	void join_channel(Client* client, std::string key, Channel* channel);
 	void part_channel(Client* client, Channel* channel, std::string message);
+	void remove_channel(Channel* channel);
 
 	//getter
         int get_client_fd() const;

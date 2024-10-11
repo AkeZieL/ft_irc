@@ -29,6 +29,18 @@ void Parser::send_privmsg(Client* client, std::string message, const std::vector
 
 	//channel
         if (args[0][0] == '#'){
+		Channel* tmp_channel = this->_serv->get_channel(args[0]);
+		if (tmp_channel == NULL) {
+			msg_to_client = "403 " + client->get_nickname() + " " + args[0] + " :No such channel\r\n";
+                        send_msg_to_client(client->get_client_fd(), msg_to_client);
+                        return ;
+		}
+		if (tmp_channel->client_is_in_channel(client) == false) {
+			msg_to_client = "441 " + client->get_nickname() + " " + client->get_nickname() + " "  + tmp_channel->get_channel_name() + " :User not in channel\r\n";
+                        send_msg_to_client(client->get_client_fd(), msg_to_client);
+                        return ;
+		}
+		tmp_channel->send_msg_to_channel(client, message);
                 return ;
         }
 	//client

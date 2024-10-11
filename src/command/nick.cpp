@@ -30,6 +30,16 @@ void Parser::nick(Client* client, const std::vector<std::string>& args) {
 	//Changer le nom dans channel
         for(std::vector<Channel*>::const_iterator it_ch = client_channels.begin(); it_ch != client_channels.end(); it_ch++) {
 		(*it_ch)->set_nickname(client, args[0]);
+		//informer les clients dans chaque channel qu'il a changé de nom
+		std::vector<std::vector<Client*> > all_clients = (*it_ch)->get_client_in_channel();
+		for(std::vector<Client*>::const_iterator it = all_clients[0].begin(); it != all_clients[0].end(); it++) {
+			msg_to_client = ":" + old_nickname + " NICK :" + (*it)->get_nickname() + "\r\n";
+			send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
+		for(std::vector<Client*>::const_iterator it = all_clients[1].begin(); it != all_clients[1].end(); it++) {
+			msg_to_client = ":" + old_nickname + " NICK :" + (*it)->get_nickname() + "\r\n";
+			send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
 		break ;
 	}
 }

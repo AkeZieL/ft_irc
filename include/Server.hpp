@@ -41,7 +41,7 @@ class Server {
 	std::vector<Channel*> _channels;
 
         void client_connect();
-        void client_message(int client_fd);
+        void client_message(std::vector<pollfd>::iterator it_client);
         int create_socket();
     public:
         Server(std::string port, std::string passwd);

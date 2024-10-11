@@ -8,6 +8,6 @@ void Parser::ping(Client* client, const std::vector<std::string>& args) {
 		this->send_msg_to_client(client->get_client_fd(), msg_to_client);
 		return ;
 	}
-	msg_to_client = ":" + client->get_nickname() + "PONG :localhost\r\n";
+	msg_to_client = ":" + client->get_nickname() + " PONG :localhost\r\n";
 	this->send_msg_to_client(client->get_client_fd(), msg_to_client);
 }

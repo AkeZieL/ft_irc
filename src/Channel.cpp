@@ -27,7 +27,6 @@ bool Channel::client_is_in_channel(Client* client) const {
 	std::vector<std::vector<Client*> > channel_clients = this->get_client_in_channel();
 	bool is_in_channel = false;
 	for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
-		std::cout << (*it)->get_nickname() << std::endl;
 		if(client->get_nickname() == (*it)->get_nickname()){
 			is_in_channel = true;
 			break ;
@@ -214,15 +213,34 @@ void Channel::mode_states(Client* client, std::string command) const {
 void Channel::kick(Client* client, Client* client_to_kick, std::string comment) {
 	std::string msg_to_client;
 
-	this->remove_client(client_to_kick);
-	msg_to_client = ":" + client->get_nickname() + " KICK " + this->get_channel_name() + " " + client_to_kick->get_nickname() + " :" + comment + "\r\n";
+	msg_to_client = ":" + client->get_nickname() + " KICK " + this->get_channel_name() + " " + client_to_kick->get_nickname() + " " + comment + "\r\n";
 	for(std::vector<Client*>::const_iterator it = this->_operator.begin(); it != this->_operator.end(); it++) {
 		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
 	for(std::vector<Client*>::const_iterator it = this->_regular_user.begin(); it != this->_regular_user.end(); it++) {
 		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
+	this->remove_client(client_to_kick);
+	client_to_kick->remove_channel(this);
+}
 
+void Channel::send_msg_to_channel(Client* client, std::string message) {
+	std::string msg_to_client;
+
+	for(std::vector<Client*>::const_iterator it = this->_operator.begin(); it != this->_operator.end(); it++) {
+		if ((*it)->get_nickname() == client->get_nickname()) {
+			continue ;
+		}
+		msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + this->get_channel_name() + " " + message + "\r\n";
+		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+	}
+	for(std::vector<Client*>::const_iterator it = this->_regular_user.begin(); it != this->_regular_user.end(); it++) {
+		if ((*it)->get_nickname() == client->get_nickname()) {
+			continue ;
+		}
+		msg_to_client = ":" + client->get_nickname() + " PRIVMSG " + this->get_channel_name() + " " + message + "\r\n";
+		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+	}
 }
 
 size_t Channel::string_to_size_t(const std::string& str) const{

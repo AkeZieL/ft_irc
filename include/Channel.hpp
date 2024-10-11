@@ -42,6 +42,7 @@ class Channel {
 		bool client_is_in_channel(Client* client) const;
 		void mode_states(Client* client, std::string command) const;
 		std::string size_t_to_string(const size_t& limit) const;
+		void send_msg_to_channel(Client* client, std::string message);
 
 		//getter
 		const std::string get_channel_name() const;

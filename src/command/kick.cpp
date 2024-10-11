@@ -29,13 +29,19 @@ void Parser::kick(Client* client, const std::vector<std::string>& args) {
 			}
 	}
 	if (tmp_channel == NULL) {
-		//NOSUCHCHANNEL
+		msg_to_client = "403 " + client->get_nickname() + " " + args[0] + " :No such channel\r\n";
+		send_msg_to_client(client->get_client_fd(), msg_to_client);
+		return ;
 	}
 	if (tmp_client == NULL) {
-		//no client
+		msg_to_client = "401 " + client->get_nickname() + " " + args[1] + " :No such nick\r\n";
+		send_msg_to_client(client->get_client_fd(), msg_to_client);
+		return ;
 	}
-	if (tmp_channel->client_is_operator(tmp_client) == false) {
-		//ERR_CHANOPRIVNEEDED
+	if (tmp_channel->client_is_operator(client) == false) {
+		msg_to_client = "482 " + client->get_nickname() + " " + args[0] + " :You are not channel operator\r\n";
+		send_msg_to_client(client->get_client_fd(), msg_to_client);
+		return ;
 	}
 	tmp_channel->kick(client, tmp_client, comment);
 }

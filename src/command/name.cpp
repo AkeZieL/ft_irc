@@ -64,6 +64,7 @@ void Parser::names(Client* client, const std::vector<std::string>& args) {
 						all_nickname += " " + reg_nickname;
                        			}
 					//Envoyer message
+					std::cout << "all nickname : " << all_nickname << std::endl;
 					msg_to_client = "353 " + client->get_nickname() + " = " + (*it)->get_channel_name() + " :" + all_nickname + "\r\n"; //RPL_NAMEREPLY
 					this->send_msg_to_client(client->get_client_fd(), msg_to_client);
 				}

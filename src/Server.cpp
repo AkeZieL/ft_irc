@@ -72,8 +72,9 @@ void Server::start() {
         //iterer sur chaque fd disponible et vérifier les évenements disponible
         for (std::vector<pollfd>::iterator it = _poll_fd.begin(); it != _poll_fd.end(); it++) {
             //Aucun évenement
-            if ((*it).revents == 0)
+            if ((*it).revents == 0) {
                 continue ;
+	    }
             //Evenement connection/message
             if (((*it).revents & POLLIN) == POLLIN)
             {
@@ -82,10 +83,13 @@ void Server::start() {
                     this->client_connect();
                     break ;
                 }
-                this->client_message((*it).fd);
+                this->client_message(it);
             }
+	    if (it == _poll_fd.end())
+		break;
 	    //La déconnection est effectué dans read_message. Ici, c'est juste pour arreter la boucle quand il se déconnecte afin de pas faire crash le serv
 	    if (((*it).revents & POLLHUP) == POLLHUP) {
+		this->client_disconnect((*it).fd);
                 break ;
 	    }
         }
@@ -114,19 +118,22 @@ void Server::client_connect() {
 
 void Server::client_disconnect(int client_fd) {
     std::cout << "Client disconnected with fd = " << client_fd << std::endl;
-    for(std::vector<pollfd>::iterator it = this->_poll_fd.begin(); it != this->_poll_fd.end(); it++) {
+    for(std::vector<pollfd>::iterator it = this->_poll_fd.begin(); it != this->_poll_fd.end();) {
         if (it->fd == client_fd)
         {
-            it = this->_poll_fd.erase(it);
-            break ;
+		it = this->_poll_fd.erase(it);
+		break ;
         }
+	else {
+		it++;
+	}
     }
     delete _clients[client_fd];
     _clients.erase(client_fd);
     close(client_fd);
 }
 
-void Server::client_message(int client_fd) {
+void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	std::string message;
 	char buffer[1024];
 	ssize_t bytes;
@@ -135,9 +142,10 @@ void Server::client_message(int client_fd) {
 	while(!strstr(buffer, "\n"))
 	{
 		memset(buffer, 0, sizeof(buffer));
-		bytes = recv(client_fd, buffer, 1023, 0);
+		bytes = recv((*it_client).fd, buffer, 1023, 0);
 		if (bytes == 0) {
-			this->client_disconnect(client_fd);
+			this->client_disconnect((*it_client).fd);
+			it_client = _poll_fd.end();
 			return ;
 		}
 		else if (bytes < 0) {
@@ -148,7 +156,7 @@ void Server::client_message(int client_fd) {
 	}
 	std::cout << "client message : " << message << std::endl;
 	//Utiliser la class parser pour gerer le message
-	this->_parser->parse(this->_clients.at(client_fd), message);
+	this->_parser->parse(this->_clients.at((*it_client).fd), message);
 }
 
 Channel* Server::create_channel(Client* client, std::vector<std::string> channel, std::vector<std::string> key, size_t i) {

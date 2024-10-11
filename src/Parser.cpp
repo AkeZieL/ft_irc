@@ -11,6 +11,11 @@ Parser::Parser(Server* server) : _serv(server) {
 	this->_commands["TOPIC"] = &Parser::topic;
 	this->_commands["LIST"] = &Parser::list;
 	this->_commands["NAMES"] = &Parser::names;
+	this->_commands["PING"] = &Parser::ping;
+	this->_commands["PONG"] = &Parser::pong;
+	this->_commands["WHOIS"] = &Parser::whois;
+	this->_commands["QUIT"] = &Parser::quit;
+	this->_commands["KICK"] = &Parser::kick;
 }
 
 Parser::~Parser() {
