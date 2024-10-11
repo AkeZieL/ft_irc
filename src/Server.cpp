@@ -17,6 +17,9 @@ Server::~Server() {
         delete it->second;
     }
     delete _parser;
+    for(size_t i = 0; i != this->_channels.size(); i++) {
+        delete this->_channels[i];
+    }
 };
 
 int Server::create_socket() {
@@ -28,7 +31,7 @@ int Server::create_socket() {
     socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socket_fd < 0)
         throw std::runtime_error("error while creating socket");
-    
+
     //désactiver IPV6_V6ONLY pour accepter les connexions ipv4 mappé
     if (setsockopt(socket_fd, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval)) < 0) {
         close(socket_fd);
@@ -52,7 +55,7 @@ int Server::create_socket() {
     if (bind(socket_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(socket_fd);
         throw std::runtime_error("error while binding sockfd");
-    } 
+    }
 
     //Mettre en écoute le socket
     if (listen(socket_fd, MAX_CLIENTS) < 0) {
@@ -139,6 +142,7 @@ void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	ssize_t bytes;
 
 	memset(buffer, 0, sizeof(buffer));
+
 	while(!strstr(buffer, "\n"))
 	{
 		memset(buffer, 0, sizeof(buffer));
@@ -156,6 +160,8 @@ void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	}
 	std::cout << "client message : " << message << std::endl;
 	//Utiliser la class parser pour gerer le message
+    if (message == "\n")
+        return;
 	this->_parser->parse(this->_clients.at((*it_client).fd), message);
 }
 

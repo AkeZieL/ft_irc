@@ -288,7 +288,7 @@ std::string Channel::get_key() const {
 std::vector<std::vector<Client*> > Channel::get_client_in_channel() const {
 	std::vector<std::vector<Client*> > all_client;
 
-	all_client.push_back(this->_operator); 	
+	all_client.push_back(this->_operator);
 	all_client.push_back(this->_regular_user);
 	return(all_client);
 }
@@ -340,10 +340,23 @@ void Channel::set_topic(Client* client, std::string topic) {
 			return ;
 		}
 	}
-	this->_topic = topic;
 	//Envoyer le nouveau topic a tout les utilisateur
 	if (topic.empty())
+	{
+		// Il faut afficher le topic
+		for (std::vector<Client*>::const_iterator it = _operator.begin(); it != _operator.end(); it++) {
+			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + this->_topic + "\r\n";
+			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
+		for (std::vector<Client*>::const_iterator it = this->_regular_user.begin(); it != this->_regular_user.end(); it++) {
+			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + this->_topic + "\r\n";
+			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
 		return ;
+	}
+	// Supprimer le topic actuel
+	if topic[0] == ":" && topic[1] == "\n"
+		this->_topic = "";
 	topic = topic.substr(1);
 	for (std::vector<Client*>::const_iterator it = _operator.begin(); it != _operator.end(); it++) {
 		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :NEW TOPIC\r\n";
@@ -357,4 +370,5 @@ void Channel::set_topic(Client* client, std::string topic) {
 		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + topic + "\r\n";
 		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
+	this->_topic = topic;
 }
