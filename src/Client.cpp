@@ -52,7 +52,12 @@ void Client::part_channel(Client* client, Channel* channel, std::string message)
 	channel->remove_client(client);
 	this->remove_channel(channel);
 	msg_to_client = ":" + client->get_nickname() + " PART :" + channel->get_channel_name() + "\r\n";
-	Parser::send_msg_to_client(client->get_client_fd(), msg_to_client);
+	for(std::vector<Client*>::const_iterator it = channel_clients[0].begin(); it != channel_clients[0].end(); it++){
+		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+	}
+	for(std::vector<Client*>::const_iterator it = channel_clients[1].begin(); it != channel_clients[1].end(); it++){
+		Parser::send_msg_to_client(client->get_client_fd(), msg_to_client);
+	}
 	if (message != "") {
 		//envoyer le message si il y en a un
 		std::string tmp = ":WeeChat 4.5.0-dev";

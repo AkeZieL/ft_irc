@@ -142,7 +142,6 @@ void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	ssize_t bytes;
 
 	memset(buffer, 0, sizeof(buffer));
-
 	while(!strstr(buffer, "\n"))
 	{
 		memset(buffer, 0, sizeof(buffer));
@@ -160,8 +159,8 @@ void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	}
 	std::cout << "client message : " << message << std::endl;
 	//Utiliser la class parser pour gerer le message
-    if (message == "\n")
-        return;
+    	if (message == "\n") 
+        	return;
 	this->_parser->parse(this->_clients.at((*it_client).fd), message);
 }
 

@@ -332,6 +332,8 @@ void Channel::set_client(Client* client, bool is_operator) {
 
 void Channel::set_topic(Client* client, std::string topic) {
 	std::string msg_to_client;
+	std::string topic_to_send;
+	bool is_new_topic = false;
 
 	if (this->_bool_topic == true) {
 		if (this->client_is_operator(client) == false) {
@@ -341,34 +343,47 @@ void Channel::set_topic(Client* client, std::string topic) {
 		}
 	}
 	//Envoyer le nouveau topic a tout les utilisateur
-	if (topic.empty())
-	{
-		// Il faut afficher le topic
-		for (std::vector<Client*>::const_iterator it = _operator.begin(); it != _operator.end(); it++) {
-			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + this->_topic + "\r\n";
-			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
-		}
-		for (std::vector<Client*>::const_iterator it = this->_regular_user.begin(); it != this->_regular_user.end(); it++) {
-			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + this->_topic + "\r\n";
-			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
-		}
-		return ;
+	switch (topic.size()) {
+		case 0:
+			// Il faut afficher le topic
+			topic_to_send = this->_topic;
+			break ;
+		case 1:
+			// Supprimer le topic actuel
+			if (topic[0] == ':') {
+				topic_to_send = "There is no topic";
+				this->_topic = "";
+			}
+			break ;
+		default:
+			// Changer le topic (vérifier si topic commence bien par un : dans le cas contraire seul le premier mot seras pris en compte)
+			if (topic[0] != ':') {
+				size_t pos = topic.find(' ');
+
+				topic_to_send = topic.substr(0, pos);
+				this->_topic = topic_to_send;
+				is_new_topic = true;
+				break ;
+			}
+			topic_to_send = topic.substr(1);
+			this->_topic = topic_to_send;
+			is_new_topic = true;
+			break ;
 	}
-	// Supprimer le topic actuel
-	if topic[0] == ":" && topic[1] == "\n"
-		this->_topic = "";
-	topic = topic.substr(1);
 	for (std::vector<Client*>::const_iterator it = _operator.begin(); it != _operator.end(); it++) {
-		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :NEW TOPIC\r\n";
-		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
-		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + topic + "\r\n";
+		if (is_new_topic == true) {
+			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :NEW TOPIC\r\n";
+			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
+		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + topic_to_send + "\r\n";
 		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
 	for (std::vector<Client*>::const_iterator it = this->_regular_user.begin(); it != this->_regular_user.end(); it++) {
-		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :NEW TOPIC\r\n";
-		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
-		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + topic + "\r\n";
+		if (is_new_topic == true) {
+			msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :NEW TOPIC\r\n";
+			Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
+		}
+		msg_to_client = ":server PRIVMSG " + this->get_channel_name() + " :" + topic_to_send + "\r\n";
 		Parser::send_msg_to_client((*it)->get_client_fd(), msg_to_client);
 	}
-	this->_topic = topic;
 }
