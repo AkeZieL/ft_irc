@@ -74,6 +74,25 @@ void Parser::authenticated(Client* client) {
 	{
 		std::cerr << "Error : " << e.what() << std::endl;
 	}
+	//Vérifie si le client était déjà connecté, rejoindre les channels déjà rejoind
+	std::vector<Channel*> all_channels = this->_serv->get_all_channel();
+	for (std::vector<Channel*>::const_iterator it = all_channels.begin(); it != all_channels.end(); it++) {
+		std::vector<std::vector<Client*> > all_clients = (*it)->get_client_in_channel();
+		for (std::vector<Client*>::const_iterator it_cl = all_clients[0].begin(); it_cl != all_clients[0].end(); it_cl++) {
+			if ((*it_cl)->get_nickname() == client->get_nickname()) {
+        			msg_to_client = ":" + client->get_nickname() + " JOIN :" + (*it)->get_channel_name() + "\r\n";
+        			Parser::send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+		}
+		for (std::vector<Client*>::const_iterator it_cl = all_clients[1].begin(); it_cl != all_clients[1].end(); it_cl++) {
+			if ((*it_cl)->get_nickname() == client->get_nickname()) {
+        			msg_to_client = ":" + client->get_nickname() + " JOIN :" + (*it)->get_channel_name() + "\r\n";
+        			Parser::send_msg_to_client(client->get_client_fd(), msg_to_client);
+				return ;
+			}
+		}
+	}
 }
 
 void Parser::send_msg_to_client(const int client_fd, const std::string& message){
