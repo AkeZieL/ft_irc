@@ -1,6 +1,11 @@
 #include "../include/Server.hpp"
 #include "../include/Parser.hpp"
 
+void Server::signal_handler(int signum) {
+    (void)signum;
+    throw(std::runtime_error("Signal received"));
+}
+
 Server::Server(std::string port, std::string passwd) : _port(port), _passwd(passwd) {
     this->_socket_fd = create_socket();
     fcntl(this->_socket_fd, F_SETFL, O_NONBLOCK);
@@ -89,7 +94,7 @@ void Server::start() {
                 this->client_message(it);
             }
 	    if (it == _poll_fd.end())
-		break;
+		    break;
 	    //La déconnection est effectué dans read_message. Ici, c'est juste pour arreter la boucle quand il se déconnecte afin de pas faire crash le serv
 	    if (((*it).revents & POLLHUP) == POLLHUP) {
 		this->client_disconnect((*it).fd);
@@ -124,12 +129,12 @@ void Server::client_disconnect(int client_fd) {
     for(std::vector<pollfd>::iterator it = this->_poll_fd.begin(); it != this->_poll_fd.end();) {
         if (it->fd == client_fd)
         {
-		it = this->_poll_fd.erase(it);
-		break ;
+            it = this->_poll_fd.erase(it);
+            break ;
         }
-	else {
-		it++;
-	}
+        else {
+            it++;
+        }
     }
     delete _clients[client_fd];
     _clients.erase(client_fd);
@@ -159,7 +164,7 @@ void Server::client_message(std::vector<pollfd>::iterator it_client) {
 	}
 	std::cout << "client message : " << message << std::endl;
 	//Utiliser la class parser pour gerer le message
-    	if (message == "\n") 
+    	if (message == "\n")
         	return;
 	this->_parser->parse(this->_clients.at((*it_client).fd), message);
 }

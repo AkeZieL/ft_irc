@@ -15,6 +15,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include <csignal>
+
 #include "Client.hpp"
 #include "Channel.hpp"
 #include "Parser.hpp"
@@ -47,6 +49,7 @@ class Server {
         Server(std::string port, std::string passwd);
         ~Server();
 
+        static void signal_handler(int signum);
         void start();
 
         void client_disconnect(int client_fd);

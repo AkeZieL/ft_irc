@@ -8,12 +8,14 @@ int main(int argc, char* argv[]) {
     }
     try
     {
+        signal(SIGINT, Server::signal_handler);
+        signal(SIGQUIT, Server::signal_handler);
         Server server(argv[1], argv[2]);
         server.start();
     }
     catch (std::exception &e)
     {
-        std::cerr << "Error : " << e.what() << std::endl;
+        std::cerr << "\nError : " << e.what() << std::endl;
         return 0;
     }
     return 1;
